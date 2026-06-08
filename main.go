@@ -70,7 +70,9 @@ type TAcctInfo struct {
 	UserId                       string
 	ProdId, ProdType, ProdName   string
 	Rate                         int64
+	RateStr                      string
 	Amount, Balance              Money
+	AmountStr, BalanceStr        string
 	OpenDate, EndDate, CloseDate string
 	Status                       string
 	//Interest                     int64
@@ -90,8 +92,11 @@ func BuyProd(c *app.ApiCtx) {
 	acct.ProdType = prod.ProdType
 	acct.ProdName = prod.ProdName
 	acct.Rate = prod.ProdRate
+	acct.RateStr = prod.ProdRateStr
 	acct.Amount = MoneyOf(i.Amount)
+	acct.AmountStr = acct.Amount.String()
 	acct.Balance = acct.Amount
+	acct.BalanceStr = acct.Balance.String()
 	acct.OpenDate = Today().String()
 	acct.EndDate = Today().AddMonth(prod.ProdTerm).String()
 	acct.Status = "A"
@@ -143,25 +148,30 @@ func SellProd(c *app.ApiCtx) {
 }
 
 type IQueryAcct struct {
-	Status             string
 	StartNum, LimitNum int
 }
 
 type OQueryAcct struct {
-	TotalNum int64
-	Accts    []*TAcctInfo
+	TotalNum    int64
+	TotalAmount string
+	Accts       []*TAcctInfo
 }
 
 // 我的账户查询
 func QueryAcct(c *app.ApiCtx) {
 	i, o := new(IQueryAcct), new(OQueryAcct)
 	c.Init(i, o)
-	var accts []*TAcctInfo
-	c.SelectS(&accts, i.LimitNum, i.StartNum, "id", "user_id=? and status=?", c.UserId, i.Status)
-	total, _ := app.DB().Where("user_id=? and status=?", c.UserId, i.Status).Count(new(TAcctInfo))
 
-	o.TotalNum = total
-	o.Accts = accts
+	totalNum, _ := app.DB().Where("user_id=? and status='A'", c.UserId).Count(new(TAcctInfo))
+	totalAmount, _ := app.DB().Where("user_id=? and status='A'", c.UserId).SumInt(new(TAcctInfo), "amount")
+	if totalNum > 0 {
+		accts := []*TAcctInfo{}
+		c.SelectS(&accts, i.LimitNum, i.StartNum, "id", "user_id=? and status='A'", c.UserId)
+		o.Accts = accts
+	}
+
+	o.TotalNum = totalNum
+	o.TotalAmount = Money(totalAmount).String()
 
 }
 
@@ -187,6 +197,13 @@ func MoneyOf(s string) Money {
 }
 
 func (m Money) String() string {
+
+	if m == 0 {
+		return "0"
+	}
+	if m < 100 {
+		return "0." + strconv.FormatInt(int64(m), 10)
+	}
 
 	s := strconv.FormatInt(int64(m), 10)
 
