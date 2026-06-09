@@ -178,22 +178,38 @@ func QueryAcct(c *app.ApiCtx) {
 type Money int64
 
 func MoneyOf(s string) Money {
-	ss := strings.Split(s, ".")
-	if len(ss) != 2 {
-		panic(fmt.Errorf("%s is not a valid amount number", s))
-	}
-	if len(ss[1]) != 2 {
-		panic(fmt.Errorf("%s is not a valid amount number", s))
+	if strings.Contains(s, ".") {
+		ss := strings.Split(s, ".")
+
+		if len(ss) != 2 {
+			panic(fmt.Errorf("%s is not a valid amount number", s))
+		}
+		if len(ss[1]) != 2 {
+			panic(fmt.Errorf("%s is not a valid amount number", s))
+		}
+
+		numstr := ss[0] + ss[1]
+		num, err := strconv.ParseInt(numstr, 10, 64)
+
+		if err != nil {
+			panic(fmt.Errorf("ParseInt %s error:%w", numstr, err))
+		}
+
+		return Money(num)
+
+	} else {
+
+		numstr := s + "00"
+		num, err := strconv.ParseInt(numstr, 10, 64)
+
+		if err != nil {
+			panic(fmt.Errorf("ParseInt %s error:%w", numstr, err))
+		}
+
+		return Money(num)
+
 	}
 
-	numstr := ss[0] + ss[1]
-	num, err := strconv.ParseInt(numstr, 10, 64)
-
-	if err != nil {
-		panic(fmt.Errorf("ParseInt %s error:%w", numstr, err))
-	}
-
-	return Money(num)
 }
 
 func (m Money) String() string {
